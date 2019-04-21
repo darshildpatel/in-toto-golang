@@ -6,8 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
+	// "path/filepath"
 	"syscall"
+	"golang.org/x/tools/interna/fastwalk"
 )
 
 /*
@@ -57,44 +58,53 @@ func RecordArtifacts(paths []string) (map[string]interface{}, error) {
 	artifacts := make(map[string]interface{})
 	// NOTE: Walk cannot follow symlinks
 	for _, path := range paths {
-		err := filepath.Walk(path,
-			func(path string, info os.FileInfo, err error) error {
+		fi, _ := os.Stat(path)
+    mode := fi.Mode()
+		if mode.IsRegular(){
+			artifact, _ := RecordArtifact(path)
+			artifacts[path] = artifact
+		}else{
+		err := fastwalk.Walk(path,
+			func(path string, info os.FileMode) error {
+				// fmt.Println(path)
 				// Abort if Walk function has a problem, e.g. path does not exist)
-				if err != nil {
-					return err
-				}
+				// if err != nil {
+				// 	return err
+				// }
 				// Don't hash directories
 				if info.IsDir() {
 					return nil
 				}
 				//Code to verify for symlinks
-				if info.Mode() & os.ModeSymlink != 0{
-					sym_path, sym_err := os.Readlink(path)
-					if sym_err != nil {
-						return sym_err
-					}
-					recursed_artifacts, recursed_err := RecordArtifacts([]string{sym_path})
-					if recursed_err != nil {
-						return recursed_err
-					}
-					for key, value := range recursed_artifacts{
-						artifacts[key] = value
-					}
-					return nil
-				}
+				// if info.Mode() & os.ModeSymlink != 0{
+				// 	sym_path, sym_err := os.Readlink(path)
+				// 	if sym_err != nil {
+				// 		return sym_err
+				// 	}
+				// 	recursed_artifacts, recursed_err := RecordArtifacts([]string{sym_path})
+				// 	if recursed_err != nil {
+				// 		return recursed_err
+				// 	}
+				// 	for key, value := range recursed_artifacts{
+				// 		artifacts[key] = value
+				// 	}
+				// 	return nil
+				// }
 				artifact, err := RecordArtifact(path)
-
+				// fmt.Println("what we found ------------",path, artifact)
 				// Abort if artifact can't be recorded, e.g. due to file permissions
 				if err != nil {
 					return err
 				}
 				artifacts[path] = artifact
+				// print("artifact added",artifacts[path])
 				return nil
 			})
 		if err != nil {
 			return nil, err
 		}
-	}
+	}}
+	// fmt.Println("shoud",artifacts)
 	return artifacts, nil
 }
 
